@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Variables
+DISPLAY_NUMBER=":1"
+VNC_PORT="5901"
 ANDROID_VERSION="android-11"  # Android 11 lite version
 AVD_NAME="cloud_android_${ANDROID_VERSION}"
 ANDROID_SDK_ROOT="/opt/android-sdk"
@@ -10,19 +12,27 @@ DEBUG_LOG_FILE="/var/log/android_setup_debug.log"
 # Redirect stdout and stderr to debug log file
 exec > >(tee -a "$DEBUG_LOG_FILE") 2>&1
 
-echo "Starting Android with X11 forwarding and Fluxbox setup script..."
+echo "Starting Android with VNC and Fluxbox setup script on Ubuntu 22.04..."
 
 # Update system
 echo "Updating system packages..."
-sudo dnf update -y || { echo "Failed to update packages"; exit 1; }
+sudo apt update -y && sudo apt upgrade -y || { echo "Failed to update packages"; exit 1; }
 
 # Install minimal window manager (Fluxbox)
 echo "Installing Fluxbox window manager..."
-sudo dnf install -y fluxbox xorg-x11-server-Xorg xorg-x11-xauth xorg-x11-apps || { echo "Failed to install Fluxbox or X11 tools"; exit 1; }
+sudo apt install -y fluxbox || { echo "Failed to install Fluxbox"; exit 1; }
+
+# Install VNC server (TigerVNC)
+echo "Installing VNC server (TigerVNC)..."
+sudo apt install -y tigervnc-standalone-server || { echo "Failed to install VNC server"; exit 1; }
+
+# Install X11 utilities
+echo "Installing X11 utilities..."
+sudo apt install -y xorg xauth x11-apps || { echo "Failed to install X11 utilities"; exit 1; }
 
 # Install Java 11 (required for Android SDK)
 echo "Installing Java 11 (JDK)..."
-sudo dnf install -y java-11-openjdk || { echo "Failed to install Java"; exit 1; }
+sudo apt install -y openjdk-11-jdk || { echo "Failed to install Java"; exit 1; }
 
 # Set Java 11 as default
 echo "Configuring Java 11 as default..."
@@ -30,7 +40,7 @@ sudo update-alternatives --config java || { echo "Failed to configure Java alter
 
 # Install Android SDK tools
 echo "Installing Android SDK tools..."
-sudo dnf install -y wget unzip || { echo "Failed to install wget and unzip"; exit 1; }
+sudo apt install -y wget unzip || { echo "Failed to install wget and unzip"; exit 1; }
 if [ ! -d "$ANDROID_SDK_ROOT" ]; then
     wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O android_sdk.zip || { echo "Failed to download Android SDK"; exit 1; }
     sudo mkdir -p $ANDROID_SDK_ROOT
@@ -43,6 +53,13 @@ echo "Setting up environment variables..."
 echo 'export ANDROID_SDK_ROOT=/opt/android-sdk' >> ~/.bashrc
 echo 'export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/bin:$ANDROID_SDK_ROOT/platform-tools' >> ~/.bashrc
 source ~/.bashrc
+
+# Install additional dependencies for Android SDK
+sudo apt install -y libvirt-daemon libvirt-clients bridge-utils || { echo "Failed to install KVM dependencies"; exit 1; }
+
+# Enable KVM (Kernel-based Virtual Machine)
+echo "Enabling KVM for Android Emulator..."
+sudo adduser $USER kvm || { echo "Failed to add user to kvm group"; exit 1; }
 
 # Update Android SDK components
 echo "Updating Android SDK components..."
@@ -84,13 +101,35 @@ if ! grep -q '/swapfile' /etc/fstab; then
     echo "vm.swappiness=10" | sudo tee -a /etc/sysctl.conf || { echo "Failed to set swap swappiness in sysctl.conf"; exit 1; }
 fi
 
-# Create script to start the Android emulator with Fluxbox
-echo "Creating start script for Fluxbox and Android emulator..."
-cat <<EOL > ~/start_android_with_gui.sh
-#!/bin/bash
-fluxbox &
-emulator -avd "$AVD_NAME" -no-boot-anim -gpu on -no-snapshot-save
+# Configure the VNC startup script
+echo "Creating VNC startup script..."
+mkdir -p ~/.vnc
+cat <<EOL > ~/.vnc/xstartup
+#!/bin/sh
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+exec fluxbox &
 EOL
-chmod +x ~/start_android_with_gui.sh
+chmod +x ~/.vnc/xstartup
 
-echo "Setup complete. To start Fluxbox and the Android emulator, run '~/start_android_with_gui.sh' over SSH with X11 forwarding enabled."
+# Start the VNC server
+echo "Starting VNC server..."
+vncserver $DISPLAY_NUMBER -geometry 1280x720 -depth 24 || { echo "Failed to start VNC server"; exit 1; }
+
+# Configure firewall to allow VNC connections
+echo "Configuring firewall to allow VNC connections..."
+sudo ufw allow $VNC_PORT/tcp || { echo "Failed to configure firewall"; exit 1; }
+sudo ufw reload || { echo "Failed to reload firewall"; exit 1; }
+
+# Create desktop start script for Android emulator
+echo "Creating start script for Android emulator on desktop..."
+cat <<EOL > ~/Desktop/start_android_emulator.sh
+#!/bin/bash
+emulator -avd "$AVD_NAME" -no-boot-anim -gpu on -no-window
+EOL
+chmod +x ~/Desktop/start_android_emulator.sh
+
+# Print VNC connection information
+echo "VNC server setup is complete."
+echo "Connect to your server's IP address at port $VNC_PORT (e.g., 192.168.1.100:5901)."
+echo "Use the script 'start_android_emulator.sh' on the desktop to start the Android emulator."
