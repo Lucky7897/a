@@ -3,8 +3,8 @@
 # Variables
 DISPLAY_NUMBER=":1"
 VNC_PORT="5901"
-DESKTOP_ENVIRONMENT="Xfce"
-ANDROID_VERSION="android-11"  # Adjusted to Android 11 lite version
+DESKTOP_ENVIRONMENT="LXDE"
+ANDROID_VERSION="android-11"  # Android 11 lite version
 AVD_NAME="cloud_android_${ANDROID_VERSION}"
 ANDROID_SDK_ROOT="/opt/android-sdk"
 ANDROID_SDK_TOOLS="$ANDROID_SDK_ROOT/cmdline-tools/bin"
@@ -13,15 +13,15 @@ DEBUG_LOG_FILE="/var/log/android_setup_debug.log"
 # Redirect stdout and stderr to debug log file
 exec > >(tee -a "$DEBUG_LOG_FILE") 2>&1
 
-echo "Starting setup script..."
+echo "Starting Android with GUI and remote access setup script..."
 
 # Update system
 echo "Updating system packages..."
 sudo dnf update -y || { echo "Failed to update packages"; exit 1; }
 
-# Install Desktop Environment
+# Install LXDE Desktop Environment
 echo "Installing $DESKTOP_ENVIRONMENT desktop environment..."
-sudo dnf groupinstall "$DESKTOP_ENVIRONMENT" -y || { echo "Failed to install desktop environment"; exit 1; }
+sudo dnf groupinstall "LXDE" -y || { echo "Failed to install desktop environment"; exit 1; }
 
 # Install VNC Server
 echo "Installing VNC server..."
@@ -34,7 +34,7 @@ cat <<EOL > ~/.vnc/xstartup
 #!/bin/sh
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
-exec startxfce4 &
+exec startlxde &
 EOL
 chmod +x ~/.vnc/xstartup
 
@@ -54,8 +54,6 @@ sudo dnf install -y java-11-openjdk || { echo "Failed to install Java"; exit 1; 
 # Set Java 11 as default
 echo "Configuring Java 11 as default..."
 sudo update-alternatives --config java || { echo "Failed to configure Java alternatives"; exit 1; }
-sudo update-alternatives --config javac || { echo "Failed to configure javac alternatives"; exit 1; }
-sudo update-alternatives --config javaws || { echo "Failed to configure javaws alternatives"; exit 1; }
 
 # Install Android SDK tools
 echo "Installing Android SDK tools..."
@@ -117,7 +115,7 @@ fi
 echo "Creating start script for Android emulator on desktop..."
 cat <<EOL > ~/Desktop/start_android_emulator.sh
 #!/bin/bash
-emulator -avd "$AVD_NAME" -no-boot-anim -gpu on -no-window
+emulator -avd "$AVD_NAME" -no-boot-anim -gpu on -no-snapshot-save
 EOL
 chmod +x ~/Desktop/start_android_emulator.sh
 
