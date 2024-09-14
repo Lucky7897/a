@@ -70,6 +70,11 @@ sdkmanager "platform-tools" "emulator"
 echo "Installing system image for Android version $ANDROID_VERSION..."
 sdkmanager "system-images;$ANDROID_VERSION;google_apis;x86_64"
 
+# Handle JNI errors: Reinstall or update emulator
+echo "Checking and updating emulator..."
+sdkmanager --uninstall emulator
+sdkmanager --install emulator
+
 # Create or delete old AVD
 if avdmanager list avd | grep -q "$AVD_NAME"; then
     echo "Deleting old AVD named $AVD_NAME..."
