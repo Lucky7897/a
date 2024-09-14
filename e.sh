@@ -1,9 +1,6 @@
 #!/bin/bash
 
 # Variables
-DISPLAY_NUMBER=":1"
-VNC_PORT="5901"
-DESKTOP_ENVIRONMENT="MATE"  # Replacing Xfce with MATE for Rocky Linux 8
 ANDROID_VERSION="android-11"  # Android 11 lite version
 AVD_NAME="cloud_android_${ANDROID_VERSION}"
 ANDROID_SDK_ROOT="/opt/android-sdk"
@@ -13,39 +10,15 @@ DEBUG_LOG_FILE="/var/log/android_setup_debug.log"
 # Redirect stdout and stderr to debug log file
 exec > >(tee -a "$DEBUG_LOG_FILE") 2>&1
 
-echo "Starting Android with MATE GUI and remote access setup script..."
+echo "Starting Android with X11 forwarding and Fluxbox setup script..."
 
 # Update system
 echo "Updating system packages..."
 sudo dnf update -y || { echo "Failed to update packages"; exit 1; }
 
-# Install MATE Desktop Environment
-echo "Installing $DESKTOP_ENVIRONMENT desktop environment..."
-sudo dnf groupinstall "MATE Desktop" -y || { echo "Failed to install desktop environment"; exit 1; }
-
-# Install VNC Server
-echo "Installing VNC server..."
-sudo dnf install -y tigervnc-server || { echo "Failed to install VNC server"; exit 1; }
-
-# Create VNC startup script
-echo "Creating VNC startup script..."
-mkdir -p ~/.vnc
-cat <<EOL > ~/.vnc/xstartup
-#!/bin/sh
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
-exec mate-session &
-EOL
-chmod +x ~/.vnc/xstartup
-
-# Start VNC server
-echo "Starting VNC server..."
-vncserver $DISPLAY_NUMBER -geometry 1280x720 -depth 24 || { echo "Failed to start VNC server"; exit 1; }
-
-# Configure Firewall
-echo "Configuring firewall to allow VNC connections..."
-sudo firewall-cmd --zone=public --add-port=$VNC_PORT/tcp --permanent || { echo "Failed to configure firewall"; exit 1; }
-sudo firewall-cmd --reload || { echo "Failed to reload firewall"; exit 1; }
+# Install minimal window manager (Fluxbox)
+echo "Installing Fluxbox window manager..."
+sudo dnf install -y fluxbox xorg-x11-server-Xorg xorg-x11-xauth xorg-x11-apps || { echo "Failed to install Fluxbox or X11 tools"; exit 1; }
 
 # Install Java 11 (required for Android SDK)
 echo "Installing Java 11 (JDK)..."
@@ -111,15 +84,13 @@ if ! grep -q '/swapfile' /etc/fstab; then
     echo "vm.swappiness=10" | sudo tee -a /etc/sysctl.conf || { echo "Failed to set swap swappiness in sysctl.conf"; exit 1; }
 fi
 
-# Create desktop start script for Android emulator
-echo "Creating start script for Android emulator on desktop..."
-cat <<EOL > ~/Desktop/start_android_emulator.sh
+# Create script to start the Android emulator with Fluxbox
+echo "Creating start script for Fluxbox and Android emulator..."
+cat <<EOL > ~/start_android_with_gui.sh
 #!/bin/bash
+fluxbox &
 emulator -avd "$AVD_NAME" -no-boot-anim -gpu on -no-snapshot-save
 EOL
-chmod +x ~/Desktop/start_android_emulator.sh
+chmod +x ~/start_android_with_gui.sh
 
-# Print VNC connection information
-echo "VNC server setup is complete."
-echo "Connect to your server's IP address at port $VNC_PORT (e.g., 192.168.1.100:5901)."
-echo "Use the script 'start_android_emulator.sh' on the desktop to start the Android emulator."
+echo "Setup complete. To start Fluxbox and the Android emulator, run '~/start_android_with_gui.sh' over SSH with X11 forwarding enabled."
