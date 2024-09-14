@@ -3,7 +3,7 @@
 # Variables
 DISPLAY_NUMBER=":1"
 VNC_PORT="5901"
-DESKTOP_ENVIRONMENT="LXDE"
+DESKTOP_ENVIRONMENT="Xfce"  # Replacing LXDE with Xfce for Rocky Linux 8
 ANDROID_VERSION="android-11"  # Android 11 lite version
 AVD_NAME="cloud_android_${ANDROID_VERSION}"
 ANDROID_SDK_ROOT="/opt/android-sdk"
@@ -13,15 +13,15 @@ DEBUG_LOG_FILE="/var/log/android_setup_debug.log"
 # Redirect stdout and stderr to debug log file
 exec > >(tee -a "$DEBUG_LOG_FILE") 2>&1
 
-echo "Starting Android with GUI and remote access setup script..."
+echo "Starting Android with Xfce GUI and remote access setup script..."
 
 # Update system
 echo "Updating system packages..."
 sudo dnf update -y || { echo "Failed to update packages"; exit 1; }
 
-# Install LXDE Desktop Environment
+# Install Xfce Desktop Environment
 echo "Installing $DESKTOP_ENVIRONMENT desktop environment..."
-sudo dnf groupinstall "LXDE" -y || { echo "Failed to install desktop environment"; exit 1; }
+sudo dnf groupinstall "Xfce" -y || { echo "Failed to install desktop environment"; exit 1; }
 
 # Install VNC Server
 echo "Installing VNC server..."
@@ -34,7 +34,7 @@ cat <<EOL > ~/.vnc/xstartup
 #!/bin/sh
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
-exec startlxde &
+exec startxfce4 &
 EOL
 chmod +x ~/.vnc/xstartup
 
