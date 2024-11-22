@@ -1,7 +1,3 @@
-
-### `install_linux_gui.sh`
-
-```bash
 #!/bin/bash
 
 # Script to install GUI on a Linux command-line machine
